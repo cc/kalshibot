@@ -37,11 +37,14 @@ def main() -> None:
     markets = client.iter_markets(status="open", max_markets=max_markets, max_close_ts=cutoff_ts)
     print(f"[kalshibot] {len(markets)} markets retrieved")
 
+    min_volume = int(os.getenv("MIN_VOLUME", "1"))
+
     signals = find_anomalies(
         markets,
         min_score=min_score,
         volume_threshold=max_volume,
         spread_threshold=min_spread,
+        min_volume=min_volume,
     )
 
     print_report(signals)

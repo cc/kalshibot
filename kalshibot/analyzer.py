@@ -115,6 +115,7 @@ def find_anomalies(
     min_score: float = 0.5,
     volume_threshold: int = 500,
     spread_threshold: float = 10.0,
+    min_volume: int = 1,
 ) -> list[MarketSignal]:
     """
     Score all markets and return those that exceed min_score,
@@ -123,6 +124,8 @@ def find_anomalies(
     signals: list[MarketSignal] = []
     for m in markets:
         sig = score_market(m, volume_threshold=volume_threshold)
+        if sig and sig.volume_24h < min_volume:
+            continue
         if sig and sig.anomaly_score >= min_score:
             signals.append(sig)
         # Also include any market that meets the spread threshold even if score is lower
