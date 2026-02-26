@@ -51,7 +51,7 @@ def _print_rich(signals: list[MarketSignal]) -> None:
     table.add_column("Spread", justify="right", width=7)
     table.add_column("Vol 24h", justify="right", width=8)
     table.add_column("Flags", width=32)
-    table.add_column("Title", width=44)
+    table.add_column("Title")
 
     for s in signals:
         url = f"https://kalshi.com/markets/{s.event_ticker or s.ticker}"
@@ -62,7 +62,7 @@ def _print_rich(signals: list[MarketSignal]) -> None:
             _fmt_cents(s.spread),
             str(s.volume_24h),
             ", ".join(s.flags) or "—",
-            s.title[:44],
+            s.title,
         )
 
     console.print(table)
