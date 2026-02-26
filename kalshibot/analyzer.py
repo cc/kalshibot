@@ -60,19 +60,16 @@ def score_market(market: dict, volume_threshold: int = 500) -> Optional[MarketSi
     Given a raw Kalshi market dict, return a MarketSignal if scoreable, else None.
     """
     ticker = market.get("ticker", "")
-    status = market.get("status", "")
-    if status != "open":
-        return None
 
     yes_bid = market.get("yes_bid", 0) or 0
-    yes_ask = market.get("yes_ask", 100) or 100
+    yes_ask = market.get("yes_ask", 0) or 0
     no_bid = market.get("no_bid", 0) or 0
-    no_ask = market.get("no_ask", 100) or 100
+    no_ask = market.get("no_ask", 0) or 0
     volume_24h = market.get("volume_24h", 0) or 0
     open_interest = market.get("open_interest", 0) or 0
 
-    # Skip markets with no pricing data
-    if yes_bid == 0 and yes_ask == 100:
+    # Skip markets with no active pricing on either side
+    if yes_ask == 0 or no_ask == 0:
         return None
 
     spread = yes_ask - yes_bid
