@@ -33,12 +33,13 @@ def main() -> None:
     markets = client.iter_markets(status="open")
     print(f"[kalshibot] {len(markets)} open markets retrieved")
 
-    cutoff = datetime.now(timezone.utc) + timedelta(days=7)
+    resolve_days = int(os.getenv("RESOLVE_DAYS", "7"))
+    cutoff = datetime.now(timezone.utc) + timedelta(days=resolve_days)
     markets = [
         m for m in markets
         if m.get("close_time") and datetime.fromisoformat(m["close_time"].replace("Z", "+00:00")) <= cutoff
     ]
-    print(f"[kalshibot] {len(markets)} markets closing within 7 days")
+    print(f"[kalshibot] {len(markets)} markets closing within {resolve_days} days")
 
     signals = find_anomalies(
         markets,
