@@ -90,6 +90,7 @@ class KalshiClient:
             cursor = page.get("cursor")
             if not cursor:
                 break
+            time.sleep(0.5)
         return markets
 
     def get_market(self, ticker: str) -> dict:
