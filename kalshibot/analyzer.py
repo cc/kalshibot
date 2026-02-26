@@ -28,6 +28,7 @@ class MarketSignal:
     anomaly_score: float    # composite 0–1
     flags: list[str] = field(default_factory=list)
     close_time: Optional[str] = None
+    event_ticker: Optional[str] = None
 
 
 def _spread_score(spread: float, midpoint: float) -> float:
@@ -107,6 +108,7 @@ def score_market(market: dict, volume_threshold: int = 500) -> Optional[MarketSi
         anomaly_score=anomaly_score,
         flags=flags,
         close_time=market.get("close_time"),
+        event_ticker=market.get("event_ticker"),
     )
 
 
