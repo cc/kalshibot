@@ -80,8 +80,8 @@ class KalshiClient:
             params["cursor"] = cursor
         return self._get("/markets", params=params)
 
-    def iter_markets(self, status: str = "open") -> list[dict]:
-        """Page through all markets and return a flat list."""
+    def iter_markets(self, status: str = "open", max_markets: int = 10000) -> list[dict]:
+        """Page through all markets and return a flat list, capped at max_markets."""
         markets: list[dict] = []
         cursor = None
         page_num = 0
@@ -91,11 +91,11 @@ class KalshiClient:
             page_num += 1
             cursor = page.get("cursor")
             print(f"  page {page_num} — {len(markets)} markets fetched...", end="\r", flush=True)
-            if not cursor:
+            if not cursor or len(markets) >= max_markets:
                 break
             time.sleep(0.5)
         print()  # newline after the \r updates
-        return markets
+        return markets[:max_markets]
 
     def get_market(self, ticker: str) -> dict:
         return self._get(f"/markets/{ticker}")
