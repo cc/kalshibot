@@ -5,10 +5,9 @@ Docs: https://trading-api.kalshi.co/trade-api/v2/docs
 
 import os
 import base64
-import hashlib
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -41,7 +40,7 @@ def _sign_request(method: str, path: str, body: str, key_id: str, private_key_pe
 
 
 class KalshiClient:
-    def __init__(self, api_key_id: str | None = None, api_key_rsa: str | None = None, env: str = "prod"):
+    def __init__(self, api_key_id: Optional[str] = None, api_key_rsa: Optional[str] = None, env: str = "prod"):
         self.base_url = PROD_BASE if env == "prod" else DEMO_BASE
         self.api_key_id = api_key_id or os.environ["KALSHI_API_KEY_ID"]
 
@@ -60,7 +59,7 @@ class KalshiClient:
             headers.update(_sign_request(method, path, body, self.api_key_id, self.private_key_pem))
         return headers
 
-    def _get(self, path: str, params: dict | None = None) -> Any:
+    def _get(self, path: str, params: Optional[Dict] = None) -> Any:
         url = self.base_url + path
         r = self._client.get(url, headers=self._headers("GET", path), params=params)
         r.raise_for_status()
@@ -74,7 +73,7 @@ class KalshiClient:
         self,
         status: str = "open",
         limit: int = 200,
-        cursor: str | None = None,
+        cursor: Optional[str] = None,
     ) -> dict:
         params: dict = {"status": status, "limit": limit}
         if cursor:
