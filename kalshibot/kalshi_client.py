@@ -84,13 +84,17 @@ class KalshiClient:
         """Page through all markets and return a flat list."""
         markets: list[dict] = []
         cursor = None
+        page_num = 0
         while True:
             page = self.get_markets(status=status, cursor=cursor)
             markets.extend(page.get("markets", []))
+            page_num += 1
             cursor = page.get("cursor")
+            print(f"  page {page_num} — {len(markets)} markets fetched...", end="\r", flush=True)
             if not cursor:
                 break
             time.sleep(0.5)
+        print()  # newline after the \r updates
         return markets
 
     def get_market(self, ticker: str) -> dict:
