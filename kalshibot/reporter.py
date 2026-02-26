@@ -54,9 +54,10 @@ def _print_rich(signals: list[MarketSignal]) -> None:
     table.add_column("Title", width=44)
 
     for s in signals:
+        url = f"https://kalshi.com/markets/{s.ticker}"
         table.add_row(
             f"{s.anomaly_score:.2f}",
-            s.ticker,
+            f"[link={url}]{s.ticker}[/link]",
             f"{_fmt_cents(s.yes_bid)} / {_fmt_cents(s.yes_ask)}",
             _fmt_cents(s.spread),
             str(s.volume_24h),
@@ -77,5 +78,6 @@ def _print_plain(signals: list[MarketSignal]) -> None:
             f"{s.anomaly_score:>6.2f}  {s.ticker:<24}  "
             f"{_fmt_cents(s.yes_bid)}/{_fmt_cents(s.yes_ask):>6}  "
             f"{_fmt_cents(s.spread):>7}  {s.volume_24h:>6}  {', '.join(s.flags)}"
+            f"\n        https://kalshi.com/markets/{s.ticker}"
         )
     print(f"\n{len(signals)} market(s) flagged")
