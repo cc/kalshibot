@@ -26,22 +26,16 @@ def main() -> None:
     min_spread = float(os.getenv("MIN_SPREAD_THRESHOLD", "10"))
     output_dir = os.getenv("OUTPUT_DIR", "./output")
 
+    max_markets = int(os.getenv("MAX_MARKETS", "10000"))
+    resolve_days = int(os.getenv("RESOLVE_DAYS", "7"))
+    cutoff_ts = int((datetime.now(timezone.utc) + timedelta(days=resolve_days)).timestamp())
+
     print(f"[kalshibot] connecting to Kalshi ({env})...")
     client = KalshiClient(env=env)
 
-    max_markets = int(os.getenv("MAX_MARKETS", "10000"))
-
-    print("[kalshibot] fetching open markets...")
-    markets = client.iter_markets(status="open", max_markets=max_markets)
-    print(f"[kalshibot] {len(markets)} open markets retrieved")
-
-    resolve_days = int(os.getenv("RESOLVE_DAYS", "7"))
-    cutoff = datetime.now(timezone.utc) + timedelta(days=resolve_days)
-    markets = [
-        m for m in markets
-        if m.get("close_time") and datetime.fromisoformat(m["close_time"].replace("Z", "+00:00")) <= cutoff
-    ]
-    print(f"[kalshibot] {len(markets)} markets closing within {resolve_days} days")
+    print(f"[kalshibot] fetching open markets closing within {resolve_days} days...")
+    markets = client.iter_markets(status="open", max_markets=max_markets, max_close_ts=cutoff_ts)
+    print(f"[kalshibot] {len(markets)} markets retrieved")
 
     signals = find_anomalies(
         markets,

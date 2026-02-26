@@ -72,21 +72,24 @@ class KalshiClient:
     def get_markets(
         self,
         status: str = "open",
-        limit: int = 200,
+        limit: int = 1000,
         cursor: Optional[str] = None,
+        max_close_ts: Optional[int] = None,
     ) -> dict:
         params: dict = {"status": status, "limit": limit}
         if cursor:
             params["cursor"] = cursor
+        if max_close_ts is not None:
+            params["max_close_ts"] = max_close_ts
         return self._get("/markets", params=params)
 
-    def iter_markets(self, status: str = "open", max_markets: int = 10000) -> list[dict]:
+    def iter_markets(self, status: str = "open", max_markets: int = 10000, max_close_ts: Optional[int] = None) -> list[dict]:
         """Page through all markets and return a flat list, capped at max_markets."""
         markets: list[dict] = []
         cursor = None
         page_num = 0
         while True:
-            page = self.get_markets(status=status, cursor=cursor)
+            page = self.get_markets(status=status, cursor=cursor, max_close_ts=max_close_ts)
             markets.extend(page.get("markets", []))
             page_num += 1
             cursor = page.get("cursor")
