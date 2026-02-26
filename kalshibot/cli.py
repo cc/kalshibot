@@ -7,7 +7,7 @@ Usage:
 """
 
 import os
-import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -32,6 +32,13 @@ def main() -> None:
     print("[kalshibot] fetching open markets...")
     markets = client.iter_markets(status="open")
     print(f"[kalshibot] {len(markets)} open markets retrieved")
+
+    cutoff = datetime.now(timezone.utc) + timedelta(days=7)
+    markets = [
+        m for m in markets
+        if m.get("close_time") and datetime.fromisoformat(m["close_time"].replace("Z", "+00:00")) <= cutoff
+    ]
+    print(f"[kalshibot] {len(markets)} markets closing within 7 days")
 
     signals = find_anomalies(
         markets,
