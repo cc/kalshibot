@@ -29,8 +29,10 @@ def main() -> None:
     print(f"[kalshibot] connecting to Kalshi ({env})...")
     client = KalshiClient(env=env)
 
+    max_markets = int(os.getenv("MAX_MARKETS", "10000"))
+
     print("[kalshibot] fetching open markets...")
-    markets = client.iter_markets(status="open")
+    markets = client.iter_markets(status="open", max_markets=max_markets)
     print(f"[kalshibot] {len(markets)} open markets retrieved")
 
     resolve_days = int(os.getenv("RESOLVE_DAYS", "7"))
