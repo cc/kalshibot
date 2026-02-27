@@ -113,16 +113,27 @@ def print_movement_alerts(alerts: "list[MovementAlert]") -> None:
         table.add_column("Market", style="cyan")
         table.add_column("Bet")
         table.add_column("Bid/Ask", justify="center", width=12)
+        table.add_column("Price history", width=22)
         table.add_column("Alerts")
         table.add_column("Kickoff", width=18)
 
         for a in alerts:
             url = _market_url(a.event_ticker, a.ticker)
             kickoff = a.close_time[:16].replace("T", " ") + " UTC" if a.close_time else "—"
+            history_lines = []
+            if a.midpoint_long_ago is not None:
+                arrow = "↑" if a.midpoint > a.midpoint_long_ago else "↓"
+                history_lines.append(f"{_fmt_cents(a.midpoint_long_ago)} {arrow} {_fmt_cents(a.midpoint)}  (2h)")
+            if a.midpoint_short_ago is not None:
+                arrow = "↑" if a.midpoint > a.midpoint_short_ago else "↓"
+                history_lines.append(f"{_fmt_cents(a.midpoint_short_ago)} {arrow} {_fmt_cents(a.midpoint)}  (30m)")
+            if a.volume_earlier is not None and a.volume_recent is not None:
+                history_lines.append(f"vol  {a.volume_earlier} → {a.volume_recent}")
             table.add_row(
                 f"[link={url}]{a.title}[/link]",
                 a.subtitle or "—",
                 f"{_fmt_cents(a.yes_bid)} / {_fmt_cents(a.yes_ask)}",
+                "\n".join(history_lines) or "—",
                 "\n".join(a.alerts),
                 kickoff,
             )

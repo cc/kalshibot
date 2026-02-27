@@ -23,8 +23,12 @@ class MovementAlert:
     midpoint: float
     volume_24h: int
     alerts: list[str]
-    magnitude: float    # largest price move in cents, for sorting
+    magnitude: float            # largest price move in cents, for sorting
     close_time: str
+    midpoint_short_ago: Optional[float] = None   # midpoint at start of short window
+    midpoint_long_ago: Optional[float] = None    # midpoint at start of long window
+    volume_recent: Optional[int] = None          # volume in recent half of candles
+    volume_earlier: Optional[int] = None         # volume in earlier half of candles
 
 
 def _candle_midpoint(candle: dict) -> Optional[float]:
@@ -69,6 +73,10 @@ def detect_movements(
 
     alerts: list[str] = []
     magnitude = 0.0
+    midpoint_short_ago = None
+    midpoint_long_ago = None
+    volume_recent = None
+    volume_earlier = None
 
     # 1. Short-term price move
     short_target_ts = current_ts - (short_minutes * 60)
@@ -76,6 +84,7 @@ def detect_movements(
     if short_candle:
         short_mid = _candle_midpoint(short_candle)
         if short_mid is not None:
+            midpoint_short_ago = short_mid
             move = current_mid - short_mid
             if abs(move) >= short_cents:
                 direction = "+" if move > 0 else ""
@@ -88,6 +97,7 @@ def detect_movements(
     if long_candle:
         long_mid = _candle_midpoint(long_candle)
         if long_mid is not None:
+            midpoint_long_ago = long_mid
             move = current_mid - long_mid
             if abs(move) >= long_cents:
                 direction = "+" if move > 0 else ""
@@ -97,9 +107,9 @@ def detect_movements(
     # 3. Volume spike — split candles in half, compare halves
     if len(candles) >= 4:
         mid = len(candles) // 2
-        earlier_vol = sum(c.get("volume", 0) for c in candles[:mid]) or 1
-        recent_vol = sum(c.get("volume", 0) for c in candles[mid:])
-        ratio = recent_vol / earlier_vol
+        volume_earlier = sum(c.get("volume", 0) for c in candles[:mid])
+        volume_recent = sum(c.get("volume", 0) for c in candles[mid:])
+        ratio = volume_recent / (volume_earlier or 1)
         if ratio >= volume_multiplier:
             alerts.append(f"volume spike {ratio:.1f}x")
             magnitude = max(magnitude, ratio * 5)   # scale to cents-ish for sorting
@@ -123,4 +133,8 @@ def detect_movements(
         alerts=alerts,
         magnitude=magnitude,
         close_time=market.get("close_time", ""),
+        midpoint_short_ago=midpoint_short_ago,
+        midpoint_long_ago=midpoint_long_ago,
+        volume_recent=volume_recent,
+        volume_earlier=volume_earlier,
     )
