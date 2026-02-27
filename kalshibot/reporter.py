@@ -18,6 +18,11 @@ def _fmt_cents(v: float) -> str:
     return f"{v:.0f}¢"
 
 
+def _fmt_mid(v: float) -> str:
+    """Show one decimal place so e.g. 18.5¢ is visible rather than rounding to 18¢."""
+    return f"{v:.1f}¢"
+
+
 def write_json_report(signals: list[MarketSignal], output_dir: str = "./output") -> Path:
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -123,10 +128,10 @@ def print_movement_alerts(alerts: "list[MovementAlert]") -> None:
             history_lines = []
             if a.midpoint_long_ago is not None:
                 arrow = "↑" if a.midpoint > a.midpoint_long_ago else "↓"
-                history_lines.append(f"{_fmt_cents(a.midpoint_long_ago)} {arrow} {_fmt_cents(a.midpoint)}  (2h)")
+                history_lines.append(f"{_fmt_mid(a.midpoint_long_ago)} {arrow} {_fmt_mid(a.midpoint)}  (2h)")
             if a.midpoint_short_ago is not None:
                 arrow = "↑" if a.midpoint > a.midpoint_short_ago else "↓"
-                history_lines.append(f"{_fmt_cents(a.midpoint_short_ago)} {arrow} {_fmt_cents(a.midpoint)}  (30m)")
+                history_lines.append(f"{_fmt_mid(a.midpoint_short_ago)} {arrow} {_fmt_mid(a.midpoint)}  (30m)")
             if a.volume_earlier is not None and a.volume_recent is not None:
                 history_lines.append(f"vol  {a.volume_earlier} → {a.volume_recent}")
             table.add_row(
