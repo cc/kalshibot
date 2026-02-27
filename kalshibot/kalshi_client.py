@@ -75,21 +75,35 @@ class KalshiClient:
         limit: int = 1000,
         cursor: Optional[str] = None,
         max_close_ts: Optional[int] = None,
+        series_ticker: Optional[str] = None,
     ) -> dict:
         params: dict = {"status": status, "limit": limit}
         if cursor:
             params["cursor"] = cursor
         if max_close_ts is not None:
             params["max_close_ts"] = max_close_ts
+        if series_ticker:
+            params["series_ticker"] = series_ticker
         return self._get("/markets", params=params)
 
-    def iter_markets(self, status: str = "open", max_markets: int = 10000, max_close_ts: Optional[int] = None) -> list[dict]:
+    def iter_markets(
+        self,
+        status: str = "open",
+        max_markets: int = 10000,
+        max_close_ts: Optional[int] = None,
+        series_ticker: Optional[str] = None,
+    ) -> list[dict]:
         """Page through all markets and return a flat list, capped at max_markets."""
         markets: list[dict] = []
         cursor = None
         page_num = 0
         while True:
-            page = self.get_markets(status=status, cursor=cursor, max_close_ts=max_close_ts)
+            page = self.get_markets(
+                status=status,
+                cursor=cursor,
+                max_close_ts=max_close_ts,
+                series_ticker=series_ticker,
+            )
             markets.extend(page.get("markets", []))
             page_num += 1
             cursor = page.get("cursor")
@@ -105,3 +119,24 @@ class KalshiClient:
 
     def get_orderbook(self, ticker: str, depth: int = 10) -> dict:
         return self._get(f"/markets/{ticker}/orderbook", params={"depth": depth})
+
+    # ------------------------------------------------------------------
+    # Candlesticks (price history)
+    # ------------------------------------------------------------------
+
+    def get_candlesticks(
+        self,
+        series_ticker: str,
+        market_ticker: str,
+        start_ts: int,
+        end_ts: int,
+        period_interval: int = 60,
+    ) -> list[dict]:
+        """Fetch OHLC candlestick history. period_interval must be 1 or 60 (seconds)."""
+        path = f"/series/{series_ticker}/markets/{market_ticker}/candlesticks"
+        data = self._get(path, params={
+            "start_ts": start_ts,
+            "end_ts": end_ts,
+            "period_interval": period_interval,
+        })
+        return data.get("candlesticks", [])

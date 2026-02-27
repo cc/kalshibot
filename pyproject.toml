@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 kalshibot = "kalshibot.cli:main"
+kalshibot-monitor = "kalshibot.monitor:run_monitor"
 
 [tool.hatch.build.targets.wheel]
 packages = ["kalshibot"]

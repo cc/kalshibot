@@ -6,9 +6,12 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .analyzer import MarketSignal
+
+if TYPE_CHECKING:
+    from .soccer import MovementAlert
 
 
 def _fmt_cents(v: float) -> str:
@@ -84,3 +87,70 @@ def _print_plain(signals: list[MarketSignal]) -> None:
             f"\n        https://kalshi.com/markets/{(s.event_ticker or s.ticker).rsplit('-', 1)[0]}"
         )
     print(f"\n{len(signals)} market(s) flagged")
+
+
+# ------------------------------------------------------------------
+# Movement alert reporter (EPL monitor)
+# ------------------------------------------------------------------
+
+def _market_url(event_ticker: str, ticker: str) -> str:
+    base = (event_ticker or ticker).rsplit("-", 1)[0]
+    return f"https://kalshi.com/markets/{base}"
+
+
+def print_movement_alerts(alerts: "list[MovementAlert]") -> None:
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich import box
+
+        console = Console()
+        table = Table(
+            title=f"EPL Movement Alerts — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+            box=box.ROUNDED,
+            show_lines=True,
+        )
+        table.add_column("Market", style="cyan")
+        table.add_column("Bet")
+        table.add_column("Bid/Ask", justify="center", width=12)
+        table.add_column("Alerts")
+        table.add_column("Kickoff", width=18)
+
+        for a in alerts:
+            url = _market_url(a.event_ticker, a.ticker)
+            kickoff = a.close_time[:16].replace("T", " ") + " UTC" if a.close_time else "—"
+            table.add_row(
+                f"[link={url}]{a.title}[/link]",
+                a.subtitle or "—",
+                f"{_fmt_cents(a.yes_bid)} / {_fmt_cents(a.yes_ask)}",
+                "\n".join(a.alerts),
+                kickoff,
+            )
+
+        console.print(table)
+        console.print(f"[dim]{len(alerts)} alert(s)[/dim]")
+
+    except ImportError:
+        print(f"\n=== EPL Movement Alerts {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} ===")
+        for a in alerts:
+            url = _market_url(a.event_ticker, a.ticker)
+            print(f"  {a.title} — {', '.join(a.alerts)}")
+            print(f"  {url}")
+        print(f"\n{len(alerts)} alert(s)")
+
+
+def write_movement_report(alerts: "list[MovementAlert]", output_dir: str = "./output") -> Path:
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    path = Path(output_dir) / f"movements_{date_str}.json"
+    ts = datetime.now(timezone.utc).isoformat()
+    data = [{"ts": ts, **a.__dict__} for a in alerts]
+    # Append to existing file if present
+    existing: list = []
+    if path.exists():
+        with open(path) as f:
+            existing = json.load(f)
+    with open(path, "w") as f:
+        json.dump(existing + data, f, indent=2, default=str)
+    print(f"\n[monitor] report saved → {path}")
+    return path
