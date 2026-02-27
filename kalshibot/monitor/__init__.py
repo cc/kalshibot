@@ -27,6 +27,7 @@ def run_monitor() -> None:
     env = os.getenv("KALSHI_ENV", "prod")
     output_dir = os.getenv("OUTPUT_DIR", "./output")
     poll_interval = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))
+    poll_once = os.getenv("POLL_ONCE", "").lower() in ("1", "true", "yes")
     soccer_series = [s.strip() for s in os.getenv("SOCCER_SERIES", "KXEPLGAME,KXEPLBTTS,KXEPLTOTAL,KXEPLSPREAD").split(",")]
     short_minutes = int(os.getenv("PRICE_MOVE_SHORT_MINUTES", "30"))
     short_cents = float(os.getenv("PRICE_MOVE_SHORT_CENTS", "5"))
@@ -34,7 +35,8 @@ def run_monitor() -> None:
     long_cents = float(os.getenv("PRICE_MOVE_LONG_CENTS", "10"))
     volume_multiplier = float(os.getenv("VOLUME_SPIKE_MULTIPLIER", "2.0"))
 
-    print(f"[monitor] starting EPL monitor (poll every {poll_interval}m)")
+    mode = "one-shot" if poll_once else f"poll every {poll_interval}m"
+    print(f"[monitor] starting EPL monitor ({mode})")
     client = KalshiClient(env=env)
 
     while True:
@@ -85,6 +87,10 @@ def run_monitor() -> None:
             print_movement_alerts(alerts)
             write_movement_report(alerts, output_dir=output_dir)
         else:
-            print(f"[monitor] no movements detected — next check in {poll_interval}m")
+            print(f"[monitor] no movements detected")
 
+        if poll_once:
+            break
+
+        print(f"[monitor] next check in {poll_interval}m")
         time.sleep(poll_interval * 60)
