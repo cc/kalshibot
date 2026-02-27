@@ -55,6 +55,7 @@ def detect_movements(
     long_hours: int = 2,
     long_cents: float = 10.0,
     volume_multiplier: float = 2.0,
+    max_spread_cents: float = 20.0,
 ) -> Optional[MovementAlert]:
     """
     Analyse candlestick history for a single market.
@@ -67,6 +68,10 @@ def detect_movements(
     yes_bid = market.get("yes_bid") or 0
     yes_ask = market.get("yes_ask") or 0
     if yes_ask == 0:
+        return None
+
+    # Skip markets with an excessively wide bid/ask spread (illiquid / unpriced)
+    if (yes_ask - yes_bid) > max_spread_cents:
         return None
     current_mid = (yes_bid + yes_ask) / 2.0
     current_ts = max(c["end_period_ts"] for c in candles)
@@ -109,8 +114,9 @@ def detect_movements(
         mid = len(candles) // 2
         volume_earlier = sum(c.get("volume", 0) for c in candles[:mid])
         volume_recent = sum(c.get("volume", 0) for c in candles[mid:])
+        total_volume = volume_earlier + volume_recent
         ratio = volume_recent / (volume_earlier or 1)
-        if ratio >= volume_multiplier:
+        if total_volume > 0 and ratio >= volume_multiplier:
             alerts.append(f"volume spike {ratio:.1f}x")
             magnitude = max(magnitude, ratio * 5)   # scale to cents-ish for sorting
 

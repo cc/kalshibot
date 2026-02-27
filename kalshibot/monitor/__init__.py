@@ -34,6 +34,7 @@ def run_monitor() -> None:
     long_hours = int(os.getenv("PRICE_MOVE_LONG_HOURS", "2"))
     long_cents = float(os.getenv("PRICE_MOVE_LONG_CENTS", "10"))
     volume_multiplier = float(os.getenv("VOLUME_SPIKE_MULTIPLIER", "2.0"))
+    max_spread_cents = float(os.getenv("MAX_SPREAD_CENTS", "20"))
 
     mode = "one-shot" if poll_once else f"poll every {poll_interval}m"
     print(f"[monitor] starting EPL monitor ({mode})")
@@ -78,6 +79,7 @@ def run_monitor() -> None:
                 long_hours=long_hours,
                 long_cents=long_cents,
                 volume_multiplier=volume_multiplier,
+                max_spread_cents=max_spread_cents,
             )
             if alert:
                 alerts.append(alert)
