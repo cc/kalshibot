@@ -4,6 +4,7 @@ Write scan results to stdout (rich table) and/or a dated log file.
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
@@ -103,6 +104,42 @@ def _market_url(event_ticker: str, ticker: str) -> str:
     return f"https://kalshi.com/markets/{base}"
 
 
+def _fixture_key(event_ticker: str) -> str:
+    """Strip series prefix to get the fixture identifier, shared across all series for a game.
+
+    e.g. "KXEPLGAME-26MAR14NEWEVE" and "KXEPLSPREAD-26MAR14NEWEVE" both return "26MAR14NEWEVE".
+    """
+    parts = (event_ticker or "").split("-", 1)
+    return parts[1] if len(parts) > 1 else event_ticker
+
+
+def _fmt_fixture_key(key: str) -> str:
+    """Strip date prefix from a fixture key, returning just the teams code.
+
+    e.g. "26FEB28EVENE" -> "EVENE", "26MAR14NEWEVE" -> "NEWEVE"
+    """
+    m = re.match(r'^\d{2}[A-Z]{3}\d{2}(.+)$', key)
+    return m.group(1) if m else key
+
+
+def _game_label(group: list) -> str:
+    """Derive a human-readable fixture label from a group of alerts for the same event."""
+    # KXEPLGAME titles are "Team A vs Team B Winner?" — cleanest form
+    for a in group:
+        if a.series_ticker == "KXEPLGAME":
+            return a.title.replace(" Winner?", "").replace("?", "").strip()
+    # Fallback: extract from any "X vs Y" title
+    for a in group:
+        if " vs " in a.title:
+            before, after = a.title.split(" vs ", 1)
+            team1 = before.split()[-1] if before.split() else before
+            team2_words = after.split("?")[0].strip().split()
+            team2 = team2_words[0] if team2_words else after
+            return f"{team1} vs {team2}"
+    # Last resort: format the fixture key (e.g. "EVENE · Mar 14")
+    return _fmt_fixture_key(_fixture_key(group[0].event_ticker or group[0].ticker))
+
+
 def print_movement_alerts(alerts: "list[MovementAlert]") -> None:
     try:
         from rich.console import Console
@@ -122,29 +159,54 @@ def print_movement_alerts(alerts: "list[MovementAlert]") -> None:
         table.add_column("Alerts")
         table.add_column("Kickoff", width=18)
 
+        # Group by fixture key (strips series prefix so WIN/BTTS/TOTAL/SPREAD for the same
+        # game land in the same group), sorted by kickoff time
+        groups: dict = {}
         for a in alerts:
-            url = _market_url(a.event_ticker, a.ticker)
-            kickoff = a.close_time[:16].replace("T", " ") + " UTC" if a.close_time else "—"
-            history_lines = []
-            if a.midpoint_long_ago is not None:
-                arrow = "↑" if a.midpoint > a.midpoint_long_ago else "↓"
-                history_lines.append(f"{_fmt_mid(a.midpoint_long_ago)} {arrow} {_fmt_mid(a.midpoint)}  (2h)")
-            if a.midpoint_short_ago is not None:
-                arrow = "↑" if a.midpoint > a.midpoint_short_ago else "↓"
-                history_lines.append(f"{_fmt_mid(a.midpoint_short_ago)} {arrow} {_fmt_mid(a.midpoint)}  (30m)")
-            if a.volume_earlier is not None and a.volume_recent is not None:
-                history_lines.append(f"vol  {a.volume_earlier} → {a.volume_recent}")
+            key = _fixture_key(a.event_ticker or a.ticker)
+            groups.setdefault(key, []).append(a)
+        # Within each group: KXEPLGAME first (best title), then by magnitude descending
+        for g in groups.values():
+            g.sort(key=lambda a: (a.series_ticker != "KXEPLGAME", -a.magnitude))
+        sorted_groups = sorted(groups.values(), key=lambda g: g[0].close_time or "")
+
+        first = True
+        for group in sorted_groups:
+            if not first:
+                table.add_section()
+            first = False
+
+            game_name = _game_label(group)
+            kickoff = group[0].close_time[:16].replace("T", " ") + " UTC" if group[0].close_time else "—"
             table.add_row(
-                f"[link={url}]{a.title}[/link]",
-                a.subtitle or "—",
-                f"{_fmt_cents(a.yes_bid)} / {_fmt_cents(a.yes_ask)}",
-                "\n".join(history_lines) or "—",
-                "\n".join(a.alerts),
-                kickoff,
+                f"[bold white]{game_name}[/bold white]",
+                "", "", "", "",
+                f"[dim]{kickoff}[/dim]",
+                style="on grey23",
             )
 
+            for a in group:
+                url = _market_url(a.event_ticker, a.ticker)
+                history_lines = []
+                if a.midpoint_long_ago is not None:
+                    arrow = "↑" if a.midpoint > a.midpoint_long_ago else "↓"
+                    history_lines.append(f"{_fmt_mid(a.midpoint_long_ago)} {arrow} {_fmt_mid(a.midpoint)}  (12h)")
+                if a.midpoint_short_ago is not None:
+                    arrow = "↑" if a.midpoint > a.midpoint_short_ago else "↓"
+                    history_lines.append(f"{_fmt_mid(a.midpoint_short_ago)} {arrow} {_fmt_mid(a.midpoint)}  (30m)")
+                if a.volume_earlier is not None and a.volume_recent is not None:
+                    history_lines.append(f"vol  {a.volume_earlier} → {a.volume_recent}")
+                table.add_row(
+                    f"[link={url}]{a.title}[/link]",
+                    a.subtitle or "—",
+                    f"{_fmt_cents(a.yes_bid)} / {_fmt_cents(a.yes_ask)}",
+                    "\n".join(history_lines) or "—",
+                    "\n".join(a.alerts),
+                    "",
+                )
+
         console.print(table)
-        console.print(f"[dim]{len(alerts)} alert(s)[/dim]")
+        console.print(f"[dim]{len(alerts)} alert(s) across {len(groups)} game(s)[/dim]")
 
     except ImportError:
         print(f"\n=== EPL Movement Alerts {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} ===")
